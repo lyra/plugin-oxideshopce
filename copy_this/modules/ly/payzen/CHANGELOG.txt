@@ -1,0 +1,2 @@
+2.0.0, 2016-06-01:
+- Initial release of PayZen payment module for OXID eShop CE 4.9.x.
