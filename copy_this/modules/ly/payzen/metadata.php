@@ -1,53 +1,41 @@
 <?php
 /**
- * PayZen V2-Payment Module version 2.0.1 for OXID_eShop_CE 4.9-4.10. Support contact : support@payzen.eu.
+ * Copyright © Lyra Network.
+ * This file is part of PayZen plugin for OXID eShop CE. See COPYING.md for license details.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @author    Lyra Network (http://www.lyra-network.com/)
- * @copyright 2014-2018 Lyra Network and contributors
- * @license   http://www.gnu.org/licenses/gpl.html  GNU General Public License (GPL v3)
- * @category  payment
- * @package   payzen
+ * @author    Lyra Network (https://www.lyra.com/)
+ * @copyright Lyra Network
+ * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License (GPL v3)
  */
 
 /**
- * Metadata version
+ * Metadata version.
  */
-$sMetadataVersion = '1.0';
+$sMetadataVersion = '1.1';
 
 require_once(dirname(__FILE__) . '/core/api/lypayzenapi.php');
+require_once(dirname(__FILE__) . '/core/lypayzentools.php');
 $availableLanguages = PayzenApi::getSupportedLanguages();
 $notificationUrl = oxRegistry::getConfig()->getSslShopUrl() . 'index.php?cl=lyPayzenResponse&fnc=callback';
 
 /**
- * Module information
+ * Module information.
  */
 $aModule = array(
     'id' => 'payzen',
-    'title' => 'PayZen',
+    'title' => lyPayzenTools::getDefault('GATEWAY_NAME'),
     'description' => array(
         'en' => 'Module that links OXID eShop system with PayZen secured payment gateway.<br />This module is compatible with PayZen <b>V2</b> gateway.',
         'de' => 'Modul, der das OXID eShop System mit PayZen sicherlicher Bezahlungsplattform verbindet.<br />Dieser Modul ist mit PayZen <b>V2</b> Plattform kompatibel.',
-        'fr' => 'Module qui lie le système OXID eShop avec la plateforme de paiement sécurisé PayZen. <br />Ce module est compatible la plateforme PayZen <b>V2</b>.'
+        'fr' => 'Module qui lie le système OXID eShop avec la plateforme de paiement sécurisé PayZen. <br />Ce module est compatible la plateforme PayZen <b>V2</b>.',
+        'es' => 'Módulo que vincula el sistema OXID eShop con la pasarela de pago segura PayZen.<br /> Este módulo es compatible con la puerta de enlace PayZen <b>. V2 </b>.'
     ),
-    'lang' => 'fr',
+    'lang' => lyPayzenTools::getDefault('LANGUAGE'),
     'thumbnail' => 'logo.png',
-    'version' => '2.0.1',
+    'version' => lyPayzenTools::getDefault('PLUGIN_VERSION'),
     'author' => 'Lyra Network',
-    'email' => 'support@payzen.eu',
-    'url' => 'http://www.lyra-network.com/',
+    'email' => lyPayzenTools::getDefault('SUPPORT_EMAIL'),
+    'url' => 'https://www.lyra.com/',
 
     'extend' => array(
         'module_config' => 'ly/payzen/controllers/admin/lypayzenmodule_config',
@@ -86,26 +74,38 @@ $aModule = array(
     ),
 
     'settings' => array(
-        array('group' => 'GATEWAY_ACCESS', 'name' => 'SITE_ID', 'type' => 'str', 'value' => '12345678', 'position' => '1'),
-        array('group' => 'GATEWAY_ACCESS', 'name' => 'KEY_TEST', 'type' => 'str', 'value' => '1111111111111111', 'position' => '2'),
-        array('group' => 'GATEWAY_ACCESS', 'name' => 'KEY_PROD', 'type' => 'str', 'value' => '2222222222222222', 'position' => '3'),
-        array('group' => 'GATEWAY_ACCESS', 'name' => 'CTX_MODE', 'type' => 'select', 'constraints' => 'TEST|PRODUCTION', 'value' => 'TEST', 'position' => '4'),
-        array('group' => 'GATEWAY_ACCESS', 'name' => 'CHECK_URL', 'type' => 'str', 'value' => $notificationUrl, 'position' => '6'),
-        array('group' => 'GATEWAY_ACCESS', 'name' => 'PLATFORM_URL', 'type' => 'str', 'value' => 'https://secure.payzen.eu/vads-payment/', 'position' => '5'),
+        array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_SITE_ID', 'type' => 'str', 'value' => lyPayzenTools::getDefault('SITE_ID'), 'position' => '1'),
+        array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_KEY_TEST', 'type' => 'str', 'value' => lyPayzenTools::getDefault('KEY_TEST'), 'position' => '2'),
+        array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_KEY_PROD', 'type' => 'str', 'value' => lyPayzenTools::getDefault('KEY_PROD'), 'position' => '3'),
+        ! lyPayzenTools::$pluginFeatures['qualif'] ?
+            array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_CTX_MODE', 'type' => 'select', 'constraints' => 'TEST|PRODUCTION', 'value' => lyPayzenTools::getDefault('CTX_MODE'), 'position' => '4')
+            : array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_CTX_MODE', 'type' => 'select', 'constraints' => 'PRODUCTION', 'value' => 'PRODUCTION', 'position' => '4'),
+        array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_SIGN_ALGO', 'type' => 'select', 'constraints' => 'SHA-1|SHA-256', 'value' => lyPayzenTools::getDefault('SIGN_ALGO'), 'position' => '5'),
+        array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_CHECK_URL', 'type' => 'str', 'value' => $notificationUrl, 'position' => '6'),
+        array('group' => 'PAYZEN_GATEWAY_ACCESS', 'name' => 'PAYZEN_PLATFORM_URL', 'type' => 'str', 'value' => lyPayzenTools::getDefault('GATEWAY_URL'), 'position' => '7'),
 
-        array('group' => 'PAYMENT_PAGE', 'name' => 'LANGUAGE', 'type' => 'select', 'constraints' => implode('|', array_keys($availableLanguages)), 'value' => 'fr', 'position' => '1'),
-        array('group' => 'PAYMENT_PAGE', 'name' => 'AVAILABLE_LANGUAGES', 'type' => 'arr', 'value' => array(), 'position' => '2'),
-        array('group' => 'PAYMENT_PAGE', 'name' => 'CAPTURE_DELAY', 'type' => 'str', 'value' => '', 'position' => '3'),
-        array('group' => 'PAYMENT_PAGE', 'name' => 'VALIDATION_MODE', 'type' => 'select','constraints' => '|0|1', 'value' => '', 'position' => '4'),
-        array('group' => 'PAYMENT_PAGE', 'name' => 'PAYMENT_CARDS', 'type' => 'arr', 'value' => array() , 'position' => '5'),
+        array('group' => 'PAYZEN_PAYMENT_PAGE', 'name' => 'PAYZEN_LANGUAGE', 'type' => 'select', 'constraints' => implode('|', array_keys($availableLanguages)), 'value' => lyPayzenTools::getDefault('LANGUAGE'), 'position' => '1'),
+        array('group' => 'PAYZEN_PAYMENT_PAGE', 'name' => 'PAYZEN_AVAILABLE_LANGUAGES', 'type' => 'arr', 'value' => array(), 'position' => '2'),
+        array('group' => 'PAYZEN_PAYMENT_PAGE', 'name' => 'PAYZEN_CAPTURE_DELAY', 'type' => 'str', 'value' => '', 'position' => '3'),
+        array('group' => 'PAYZEN_PAYMENT_PAGE', 'name' => 'PAYZEN_VALIDATION_MODE', 'type' => 'select', 'constraints' => '|0|1', 'value' => '', 'position' => '4'),
+        array('group' => 'PAYZEN_PAYMENT_PAGE', 'name' => 'PAYZEN_PAYMENT_CARDS', 'type' => 'arr', 'value' => array(), 'position' => '5'),
 
-        array('group' => 'SELECTIVE_3DS', 'name' => '3DS_MIN_AMOUNT', 'type' => 'str', 'value' => '', 'position' => '6'),
+        array('group' => 'PAYZEN_SELECTIVE_3DS', 'name' => 'PAYZEN_3DS_MIN_AMOUNT', 'type' => 'str', 'value' => '', 'position' => '6'),
 
-        array('group' => 'RETURN_TO_SHOP', 'name' => 'REDIRECT_ENABLED', 'type' => 'bool', 'value' => 'false', 'position' => '1'),
-        array('group' => 'RETURN_TO_SHOP', 'name' => 'REDIRECT_SUCCESS_TIMEOUT', 'type' => 'str', 'value' => '5', 'position' => '2'),
-        array('group' => 'RETURN_TO_SHOP', 'name' => 'REDIRECT_SUCCESS_MESSAGE', 'type' => 'str', 'value' => 'Redirection to shop in a few seconds...', 'position' => '3'),
-        array('group' => 'RETURN_TO_SHOP', 'name' => 'REDIRECT_ERROR_TIMEOUT', 'type' => 'str', 'value' => '5', 'position' => '4'),
-        array('group' => 'RETURN_TO_SHOP', 'name' => 'REDIRECT_ERROR_MESSAGE', 'type' => 'str', 'value' => 'Redirection to shop in a few seconds...', 'position' => '5'),
-        array('group' => 'RETURN_TO_SHOP', 'name' => 'RETURN_MODE', 'type' => 'select', 'constraints' => 'GET|POST', 'value' => 'GET', 'position' => '6')
+        array('group' => 'PAYZEN_RETURN_TO_SHOP', 'name' => 'PAYZEN_REDIRECT_ENABLED', 'type' => 'bool', 'value' => 'false', 'position' => '1'),
+        array('group' => 'PAYZEN_RETURN_TO_SHOP', 'name' => 'PAYZEN_REDIRECT_SUCCESS_TIMEOUT', 'type' => 'str', 'value' => '5', 'position' => '2'),
+        array('group' => 'PAYZEN_RETURN_TO_SHOP', 'name' => 'PAYZEN_REDIRECT_SUCCESS_MESSAGE', 'type' => 'str', 'value' => 'Redirection to shop in a few seconds...', 'position' => '3'),
+        array('group' => 'PAYZEN_RETURN_TO_SHOP', 'name' => 'PAYZEN_REDIRECT_ERROR_TIMEOUT', 'type' => 'str', 'value' => '5', 'position' => '4'),
+        array('group' => 'PAYZEN_RETURN_TO_SHOP', 'name' => 'PAYZEN_REDIRECT_ERROR_MESSAGE', 'type' => 'str', 'value' => 'Redirection to shop in a few seconds...', 'position' => '5'),
+        array('group' => 'PAYZEN_RETURN_TO_SHOP', 'name' => 'PAYZEN_RETURN_MODE', 'type' => 'select', 'constraints' => 'GET|POST', 'value' => 'GET', 'position' => '6')
     )
 );
+
+if (lyPayzenTools::$pluginFeatures['qualif']) {
+    foreach ($aModule['settings'] as $key => $item) {
+        if ($item['name'] == 'PAYZEN_KEY_TEST') {
+            unset ($aModule['settings'][$key]);
+            break;
+        }
+    }
+}

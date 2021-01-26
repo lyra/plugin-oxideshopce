@@ -1,29 +1,15 @@
 <?php
 /**
- * PayZen V2-Payment Module version 2.0.1 for OXID_eShop_CE 4.9-4.10. Support contact : support@payzen.eu.
+ * Copyright © Lyra Network.
+ * This file is part of PayZen plugin for OXID eShop CE. See COPYING.md for license details.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @author    Lyra Network (http://www.lyra-network.com/)
- * @copyright 2014-2018 Lyra Network and contributors
- * @license   http://www.gnu.org/licenses/gpl.html  GNU General Public License (GPL v3)
- * @category  payment
- * @package   payzen
+ * @author    Lyra Network (https://www.lyra.com/)
+ * @copyright Lyra Network
+ * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License (GPL v3)
  */
 
 /**
- * Redirection to PayZen payment gateway controller.
+ * Redirection to payment gateway controller.
  */
 class lyPayzenRedirect extends oxUBase
 {
@@ -59,7 +45,7 @@ class lyPayzenRedirect extends oxUBase
 
     public function render()
     {
-        if (!$this->getSession()->getVariable('sess_challenge')) {
+        if (! $this->getSession()->getVariable('sess_challenge')) {
             oxRegistry::getUtils()->redirect($this->getConfig()->getShopHomeURL() . 'cl=basket', false, 302);
         }
 
@@ -68,87 +54,73 @@ class lyPayzenRedirect extends oxUBase
 
     public function getFormAction()
     {
-        return $this->getConfig()->getConfigParam('PLATFORM_URL');
+        return $this->getConfig()->getConfigParam('PAYZEN_PLATFORM_URL');
     }
 
     public function getFormFields()
     {
         $data = array();
 
-        // load order information
+        // Load order information.
         $oOrder = oxNew('lyPayzenOxOrder');
         $oOrder->load($this->getSession()->getVariable('sess_challenge'));
 
-        // current language
+        // Current language.
         $oLang = $oOrder->getOrderLanguage();
 
-        // admin module config
+        // Admin module config.
         $oConfig = $this->getConfig();
 
-        // process currency
+        // Process currency.
         $currency = PayzenApi::findCurrencyByAlphaCode($oOrder->getOrderCurrency()->name);
         $data['currency'] = $currency->getNum();
 
-        // format amount
+        // Format amount.
         $amount = $oOrder->getTotalOrderSum();
 
         $data['amount'] = $currency->convertAmountToInteger($amount);
         $data['order_id'] = $oOrder->oxorder__oxordernr->value;
         $data['order_info'] = 'sess_challenge=' . $this->getSession()->getVariable('sess_challenge');
 
-        $data['contrib'] = 'OXID_eShop_CE4.9-4.10_2.0.1/' . oxView::getShopFullEdition() . ' ' . oxView::getShopVersion()
+        $data['contrib'] = 'OXID_eShop_CE_4.9-6.2_2.1.0/' . oxView::getShopFullEdition() . ' ' . oxView::getShopVersion()
             . '/' . PHP_VERSION;
 
-        // return to shop URL
+        // Return to shop URL.
         $data['url_return'] = $this->_getReturnUrl($oLang);
         $this->_logger->log("Complete return URL is {$data['url_return']}.", lyPayzenLogger::DEBUG);
 
-        // activate 3ds ?
+        // Activate 3ds?
         $threedsMpi = null;
-        $threedsMinAmount = $oConfig->getConfigParam('3DS_MIN_AMOUNT');
+        $threedsMinAmount = $oConfig->getConfigParam('PAYZEN_3DS_MIN_AMOUNT');
         if ($threedsMinAmount && ($amount < $threedsMinAmount)) {
             $threedsMpi = '2';
         }
 
         $data['threeds_mpi'] = $threedsMpi;
 
-        // gateway params
+        // Gateway params.
         $configParams = array(
             'site_id', 'key_test', 'key_prod', 'ctx_mode',
             'capture_delay', 'validation_mode', 'return_mode', 'redirect_enabled',
             'redirect_success_timeout', 'redirect_success_message', 'redirect_error_timeout',
-            'redirect_error_message'
+            'redirect_error_message', 'sign_algo'
         );
 
         foreach ($configParams as $configParam) {
-            $data[$configParam] = $oConfig->getConfigParam(strtoupper($configParam)) ;
+            $data[$configParam] = $oConfig->getConfigParam('PAYZEN_' . strtoupper($configParam)) ;
         }
 
-        // process payment page language
+        // Process payment page language.
         $lang = strtolower(oxRegistry::getLang()->getLanguageAbbr($oLang));
-        $data['language'] = ($lang && PayzenApi::isSupportedLanguage($lang)) ? $lang : $oConfig->getConfigParam('LANGUAGE');
+        $data['language'] = ($lang && PayzenApi::isSupportedLanguage($lang)) ? $lang : $oConfig->getConfigParam('PAYZEN_LANGUAGE');
+        $data['available_languages'] = $this->_getAvailableMultiConf($oConfig->getConfigParam('PAYZEN_AVAILABLE_LANGUAGES'), PayzenApi::getSupportedLanguages());
+        $data['payment_cards'] = $this->_getAvailableMultiConf($oConfig->getConfigParam('PAYZEN_PAYMENT_CARDS'), PayzenApi::getSupportedCardTypes());
 
-        $availLanguages = null;
-        $languages = $oConfig->getConfigParam('AVAILABLE_LANGUAGES');
-        if (isset($languages) && is_array($languages) && !empty($languages)) {
-            $availLanguages = implode(';', $languages);
-        }
-
-        $data['available_languages'] = $availLanguages ;
-
-        $availCards = null;
-        $cards = $oConfig->getConfigParam('PAYMENT_CARDS');
-        if (isset($cards) && is_array($cards) && !empty($cards)) {
-            $availCards = implode(';', $cards);
-        }
-
-        $data['payment_cards'] = $availCards ;
-
-        // customer IDs
+        // Customer IDs.
         $data['cust_id'] = $oOrder->oxorder__oxuserid->value;
-        $data['cust_email'] = $oUser->oxorder__oxbillemail->value;
+        $data['cust_email'] = $oOrder->oxorder__oxbillemail->value;
 
-        // billing address
+        // Billing address.
         $data['cust_title'] = $oOrder->oxorder__oxdelsal->value;
         $data['cust_first_name'] = $oOrder->oxorder__oxdelfname->value;
         $data['cust_last_name'] = $oOrder->oxorder__oxdellname->value;
@@ -162,7 +134,7 @@ class lyPayzenRedirect extends oxUBase
             $oState = oxNew('oxState');
             $oState->load($oOrder->oxorder__oxdelstateid->value);
 
-            // send state ISO code
+            // Send state ISO code.
             $bState = $oState->oxstates__oxisoalpha2->value;
         }
 
@@ -173,13 +145,13 @@ class lyPayzenRedirect extends oxUBase
             $oCountry = oxNew('oxCountry');
             $oCountry->load($oOrder->oxorder__oxdelcountryid->value);
 
-            // send country ISO code
+            // Send country ISO code.
             $bCountry = $oCountry->oxcountry__oxisoalpha2->value;
         }
 
         $data['cust_country'] = $bCountry;
 
-        // shipping address
+        // Shipping address.
         if ($oOrder->oxorder__oxdelstreet->value) {
             $data['ship_to_first_name'] = $oOrder->oxorder__oxdelfname->value;
             $data['ship_to_last_name'] = $oOrder->oxorder__oxdellname->value;
@@ -210,7 +182,7 @@ class lyPayzenRedirect extends oxUBase
 
             $data['ship_to_country'] = $sCountry;
         } else {
-            // shipping address is the same as billing address
+            // Shipping address is the same as billing address.
             $data['ship_to_first_name'] = $oOrder->oxorder__oxbillfname->value;
             $data['ship_to_last_name'] = $oOrder->oxorder__oxbilllname->value;
             $data['ship_to_street'] = $oOrder->oxorder__oxbillstreet->value . ' ' . $oOrder-> oxorder__oxbillstreetnr->value;
@@ -221,7 +193,7 @@ class lyPayzenRedirect extends oxUBase
             $data['ship_to_country'] = $bCountry;
         }
 
-        // render payment request form
+        // Render payment request form.
         $encoding = $oConfig->isUtf() ? 'UTF-8' : 'ISO-8859-15';
         $payzenRequest = new PayzenRequest($encoding);
         $payzenRequest->setFromArray($data);
@@ -244,5 +216,24 @@ class lyPayzenRedirect extends oxUBase
         $sUrl .= '&cl=lyPayzenResponse&fnc=callback';
 
         return $oSession->processUrl($sUrl);
+    }
+
+    private function _getAvailableMultiConf($multiConf, $supportedConf)
+    {
+        $availableMultiConf = null;
+        if (isset($multiConf) && is_array($multiConf) && ! empty($multiConf)) {
+            if (! in_array(reset($multiConf), array_keys($supportedConf))) {
+                // Array contain json string recover config with json_decode.
+                $multiConf = json_decode(reset($multiConf));
+
+                if (isset($multiConf) && is_array($multiConf) && ! empty($multiConf)) {
+                    $availableMultiConf = implode(';', $multiConf);
+                }
+            } else {
+                $availableMultiConf = implode(';', $multiConf);
+            }
+        }
+
+        return $availableMultiConf;
     }
 }

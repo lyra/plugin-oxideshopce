@@ -1,25 +1,11 @@
 <?php
 /**
- * PayZen V2-Payment Module version 2.0.1 for OXID_eShop_CE 4.9-4.10. Support contact : support@payzen.eu.
+ * Copyright © Lyra Network.
+ * This file is part of PayZen plugin for OXID eShop CE. See COPYING.md for license details.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @author    Lyra Network (http://www.lyra-network.com/)
- * @copyright 2014-2018 Lyra Network and contributors
- * @license   http://www.gnu.org/licenses/gpl.html  GNU General Public License (GPL v3)
- * @category  payment
- * @package   payzen
+ * @author    Lyra Network (https://www.lyra.com/)
+ * @copyright Lyra Network
+ * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License (GPL v3)
  */
 
 class lyPayzenModule_Config extends lyPayzenModule_Config_parent
@@ -29,7 +15,7 @@ class lyPayzenModule_Config extends lyPayzenModule_Config_parent
      */
     public function __construct()
     {
-        $this->_aSkipMultiline = array_merge($this->_aSkipMultiline, array('AVAILABLE_LANGUAGES', 'PAYMENT_CARDS'));
+        $this->_aSkipMultiline = array_merge($this->_aSkipMultiline, array('PAYZEN_AVAILABLE_LANGUAGES', 'PAYZEN_PAYMENT_CARDS'));
 
         parent::__construct();
     }
@@ -39,31 +25,46 @@ class lyPayzenModule_Config extends lyPayzenModule_Config_parent
         $template = parent::render();
 
         require_once dirname(dirname(dirname(__FILE__))) . '/core/api/lypayzenapi.php';
-        $this->_aViewData['var_constraints']['AVAILABLE_LANGUAGES'] = PayzenApi::getSupportedLanguages();
-        $this->_aViewData['var_constraints']['PAYMENT_CARDS'] =PayzenApi::getSupportedCardTypes();
+        $this->_aViewData['var_constraints']['PAYZEN_AVAILABLE_LANGUAGES'] = PayzenApi::getSupportedLanguages();
+        $this->_aViewData['var_constraints']['PAYZEN_PAYMENT_CARDS'] = PayzenApi::getSupportedCardTypes();
+
+        // Decode saved data as json string if necessary.
+        foreach ($this->_aViewData['confarrs'] as $payzenArrConfCode => $payzenArrConf) {
+            if (! is_array($payzenArrConf) || (! empty ($payzenArrConf) && ! in_array(reset($payzenArrConf), array_keys($this->_aViewData['var_constraints'][$payzenArrConfCode])))) {
+                if (is_array($payzenArrConf)) {
+                    $payzenArrConf = reset($payzenArrConf);
+                }
+
+                $payzenArrConfNewValue = json_decode(htmlspecialchars_decode($payzenArrConf));
+                $this->_aViewData['confarrs'][$payzenArrConfCode] = is_array($payzenArrConfNewValue) ? $payzenArrConfNewValue : array();
+            }
+        }
 
         return $template;
     }
 
-
     /**
-     * Saves shop configuration variables
+     * Saves shop configuration variables.
      */
     public function saveConfVars()
     {
         $oConfig = $this->getConfig();
         $aConfVars = $oConfig->getRequestParameter('confarrs');
 
-        if (!is_array($aConfVars)) {
+        if (! is_array($aConfVars)) {
             $_POST['confarrs'] = array();
         }
 
-        if (!key_exists('AVAILABLE_LANGUAGES', $_POST['confarrs'])) {
-            $_POST['confarrs']['AVAILABLE_LANGUAGES'] = array();
+        if (! key_exists('PAYZEN_AVAILABLE_LANGUAGES', $_POST['confarrs'])) {
+            $_POST['confarrs']['PAYZEN_AVAILABLE_LANGUAGES'] = '[]';
+        } else {
+            $_POST['confarrs']['PAYZEN_AVAILABLE_LANGUAGES'] = json_encode($_POST['confarrs']['PAYZEN_AVAILABLE_LANGUAGES']);
         }
 
-        if (!key_exists('PAYMENT_CARDS', $_POST['confarrs'])) {
-            $_POST['confarrs']['PAYMENT_CARDS'] = array();
+        if (! key_exists('PAYZEN_PAYMENT_CARDS', $_POST['confarrs'])) {
+            $_POST['confarrs']['PAYZEN_PAYMENT_CARDS'] = '[]';
+        } else {
+            $_POST['confarrs']['PAYZEN_PAYMENT_CARDS'] = json_encode($_POST['confarrs']['PAYZEN_PAYMENT_CARDS']);
         }
 
         parent::saveConfVars();
