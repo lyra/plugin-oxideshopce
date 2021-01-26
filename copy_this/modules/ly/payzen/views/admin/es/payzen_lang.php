@@ -10,10 +10,10 @@
 
 $aLang = array(
     'charset' => 'UTF-8',
-    'PAYZEN_ORDER_INFORMATION' => 'PayZen payment details',
-    'PAYZEN_ORDER_PAYMENTMEANS' => 'Means of payment',
-    'PAYZEN_ORDER_TRANSACTIONID' => 'Transaction ID',
-    'PAYZEN_ORDER_TRANSACTIONUUID' => 'Transaction UUID',
-    'PAYZEN_ORDER_CARDNUMBER' => 'Card number',
-    'PAYZEN_ORDER_CARDEXPIRATION' => 'Expiration date'
+    'PAYZEN_ORDER_INFORMATION' => 'Detalles de pago PayZen',
+    'PAYZEN_ORDER_PAYMENTMEANS' => 'Medios de pago',
+    'PAYZEN_ORDER_TRANSACTIONID' => 'ID de transacción',
+    'PAYZEN_ORDER_TRANSACTIONUUID' => 'UUID de transacción',
+    'PAYZEN_ORDER_CARDNUMBER' => 'Número de tarjeta',
+    'PAYZEN_ORDER_CARDEXPIRATION' => 'Fecha de expiración'
 );

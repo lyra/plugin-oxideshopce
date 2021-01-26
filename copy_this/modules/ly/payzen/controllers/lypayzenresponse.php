@@ -1,29 +1,15 @@
 <?php
 /**
- * PayZen V2-Payment Module version 2.0.1 for OXID_eShop_CE 4.9-4.10. Support contact : support@payzen.eu.
+ * Copyright © Lyra Network.
+ * This file is part of PayZen plugin for OXID eShop CE. See COPYING.md for license details.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @author    Lyra Network (http://www.lyra-network.com/)
- * @copyright 2014-2018 Lyra Network and contributors
- * @license   http://www.gnu.org/licenses/gpl.html  GNU General Public License (GPL v3)
- * @category  payment
- * @package   payzen
+ * @author    Lyra Network (https://www.lyra.com/)
+ * @copyright Lyra Network
+ * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License (GPL v3)
  */
 
 /**
- * PayZen response process controller.
+ * gateway response process controller.
  */
 class lyPayzenResponse extends oxUBase
 {
@@ -50,46 +36,45 @@ class lyPayzenResponse extends oxUBase
     {
         $response = new PayzenResponse(
             $_REQUEST,
-            $this->getConfig()->getConfigParam('CTX_MODE'),
-            $this->getConfig()->getConfigParam('KEY_TEST'),
-            $this->getConfig()->getConfigParam('KEY_PROD')
+            $this->getConfig()->getConfigParam('PAYZEN_CTX_MODE'),
+            $this->getConfig()->getConfigParam('PAYZEN_KEY_TEST'),
+            $this->getConfig()->getConfigParam('PAYZEN_KEY_PROD'),
+            $this->getConfig()->getConfigParam('PAYZEN_SIGN_ALGO')
         );
 
-        $fromServer = $response->get('hash') != null;
+        $fromServer = ($response->get('hash') != null);
 
-        // check request validity
-        if (!$response->isAuthentified()) {
-            $this->_logger->log(
-                "Received invalid response from IP {$_SERVER['REMOTE_ADDR']} with parameters: " . print_r($_REQUEST, true),
-                lyPayzenLogger::ERROR
-            );
+        // Check request validity.
+        if (! $response->isAuthentified()) {
+            $this->_logger->log("{$_SERVER['REMOTE_ADDR']} tries to access lypayzenresponse/callback page without valid signature with parameters: " . print_r($_REQUEST, true), lyPayzenLogger::ERROR);
+            $this->_logger->log('Signature algorithm selected in module settings must be the same as one selected in PayZen Back Office.', lyPayzenLogger::ERROR);
 
             if ($fromServer) {
-                die($response->getOutputForPlatform('auth_fail'));
+                die($response->getOutputForGateway('auth_fail'));
             } else {
-                // redirect user to store home page
+                // Redirect user to store home page.
                 oxRegistry::getUtils()->redirect($this->getConfig()->getShopSecureHomeUrl(), false);
                 exit;
             }
         }
 
-        // order number useful for logging issue only (can be not unique)
+        // Order number useful for logging issue only (can be not unique).
         $orderNr = $response->get('order_id');
 
-        // check order exists
+        // Check order exists.
         $sessChallenge = substr($response->get('order_info'), strlen('sess_challenge='));
         $oOrder = oxNew('lyPayzenOxOrder');
-        if (!$oOrder->load($sessChallenge)) {
+        if (! $oOrder->load($sessChallenge)) {
             $this->_logger->log(
                 "Order not found with ID $sessChallenge correspending to #$orderNr order number.",
                 lyPayzenLogger::ERROR
             );
 
             if ($fromServer) {
-                die($response->getOutputForPlatform('order_not_found'));
+                die($response->getOutputForGateway('order_not_found'));
             } else {
-                if (!$response->isCancelledPayment()) {
-                    // redirect user to store home page
+                if (! $response->isCancelledPayment()) {
+                    // Redirect user to store home page.
                     oxRegistry::getUtils()->redirect($this->getConfig()->getShopSecureHomeUrl(), false);
                     exit;
                 }
@@ -99,24 +84,24 @@ class lyPayzenResponse extends oxUBase
         $firstMsg = true;
         $oLang = oxRegistry::getLang();
 
-        // messages to display on payment result page
-        if (!$fromServer && $this->getConfig()->getConfigParam('CTX_MODE') === 'TEST') {
+        // Messages to display on payment result page.
+        require_once(dirname(__FILE__) . '/../core/lypayzentools.php');
+        if ((! $fromServer && $this->getConfig()->getConfigParam('PAYZEN_CTX_MODE') === 'TEST') && lyPayzenTools::$pluginFeatures['prodfaq']) {
             $message = $oLang->translateString('PAYZEN_GOING_INTO_PROD_INFO');
-            $message .= ' <a href="https://secure.payzen.eu/html/faq/prod" target="_blank">https://secure.payzen.eu/html/faq/prod</a>';
 
             $this->_getUtilsView()->addErrorToDisplay($message);
 
             $firstMsg = false;
         }
 
-        // load module language file
+        // Load module language file.
         if ($oOrder->oxorder__oxtransstatus->value === 'NOT_FINISHED') {
             if ($response->isAcceptedPayment()) {
                 $this->_logger->log("Payment successful for order #$orderNr.");
 
                 $this->_savePaymentData($oOrder, $response);
 
-                // update and save order
+                // Update and save order.
                 $oOrder->oxorder__oxtransstatus = new oxField('OK');
                 $oOrder->oxorder__oxpaid = new oxField(date('Y-m-d H:i:s', time()), oxField::T_RAW);
 
@@ -124,7 +109,7 @@ class lyPayzenResponse extends oxUBase
 
                 $this->_logger->log("Order #$orderNr successfully updated.");
 
-                // retrieve info for sending mail
+                // Retrieve info for sending mail.
                 $oUser = $oOrder->getOrderUser();
 
                 $oBasket = oxNew('oxBasket');
@@ -135,10 +120,10 @@ class lyPayzenResponse extends oxUBase
                 $oPayment = oxNew('oxpayment');
                 $oPayment->load($oOrder->oxorder__oxpaymenttype->value);
 
-                // effective call to send mail
+                // Effective call to send mail.
                 $result = $oOrder->sendPayzenOrderByEmail($oUser, $oBasket, $oPayment);
 
-                // save sending mail state in order
+                // Save sending mail state in order.
                 $oOrder->oxorder__payzensendmail = new oxField($result);
                 $oOrder->save();
 
@@ -147,20 +132,20 @@ class lyPayzenResponse extends oxUBase
                 }
 
                 if ($fromServer) {
-                    die($response->getOutputForPlatform('payment_ok'));
+                    die($response->getOutputForGateway('payment_ok'));
                 } else {
-                    if ($this->getConfig()->getConfigParam('CTX_MODE') == 'TEST') {
+                    if ($this->getConfig()->getConfigParam('PAYZEN_CTX_MODE') == 'TEST') {
                         $this->_logger->log("Notification URL not called correctly for order #$orderNr.", lyPayzenLogger::WARN);
 
                         $message = '<br />';
 
                         $shop = $this->getConfig()->getActiveShop();
-                        if (!$shop->oxshops__oxactive->value) {
+                        if (! $shop->oxshops__oxactive->value) {
                             $message .= $oLang->translateString('PAYZEN_CHECK_URL_WARN_MAINTENANCE');
                         } else {
-                            // payment confirmed by client retun, show a warning if TEST mode
+                            // Payment confirmed by client return, show a warning if TEST mode.
                             $message .= $oLang->translateString('PAYZEN_CHECK_URL_WARN');
-                            $message .= $oLang->translateString('PAYZEN_CHECK_URL_WARN_DETAIL');
+                            $message .= ' ' . $oLang->translateString('PAYZEN_CHECK_URL_WARN_DETAIL');
                         }
 
                         $this->_getUtilsView()->addErrorToDisplay($message);
@@ -174,18 +159,18 @@ class lyPayzenResponse extends oxUBase
                     return $page;
                 }
             } elseif ($response->isCancelledPayment()) {
-                // order cancel, delete it from database
+                // Order cancel, delete it from database.
                 $oOrder->delete();
 
                 $this->_logger->log("Order #$orderNr deleted from database.", lyPayzenLogger::WARN);
 
                 if ($fromServer){
-                    die($response->getOutputForPlatform('payment_ko'));
+                    die($response->getOutputForGateway('payment_ko'));
                 } else {
-                    // error message
+                    // Error message.
                     $message = '';
 
-                    if (!$firstMsg) {
+                    if (! $firstMsg) {
                         $message .= '<br />';
                     }
 
@@ -202,10 +187,12 @@ class lyPayzenResponse extends oxUBase
                 $oOrder->save();
 
                 if ($fromServer){
-                    die($response->getOutputForPlatform('payment_ko'));
+                    die($response->getOutputForGateway('payment_ko'));
                 } else {
-                    // error message
-                    if (!$firstMsg) {
+                    // Error message.
+                    $message = '';
+
+                    if (! $firstMsg) {
                         $message = '<br />';
                     }
 
@@ -219,7 +206,7 @@ class lyPayzenResponse extends oxUBase
                 $this->_logger->log("Payment successful confirmed for order #$orderNr.");
 
                 if ($fromServer){
-                    die($response->getOutputForPlatform('payment_ok_already_done'));
+                    die($response->getOutputForGateway('payment_ok_already_done'));
                 } else {
                     $page = 'thankyou';
                     if ($oOrder->oxorder__payzensendmail->value == oxOrder::ORDER_STATE_MAILINGERROR) {
@@ -232,12 +219,12 @@ class lyPayzenResponse extends oxUBase
                 $this->_logger->log("Payment cancellation confirmed for order #$orderNr.");
 
                 if ($fromServer){
-                    die($response->getOutputForPlatform('payment_ko_already_done'));
+                    die($response->getOutputForGateway('payment_ko_already_done'));
                 } else {
-                    // error message
+                    // Error message.
                     $message = '';
 
-                    if (!$firstMsg) {
+                    if (! $firstMsg) {
                         $message .= '<br />';
                     }
 
@@ -245,14 +232,16 @@ class lyPayzenResponse extends oxUBase
                     $this->_getUtilsView()->addErrorToDisplay($message);
                     return 'payment';
                 }
-            } elseif (!$response->isAcceptedPayment() && ($oOrder->oxorder__oxtransstatus->value == 'ERROR')) {
+            } elseif (! $response->isAcceptedPayment() && ($oOrder->oxorder__oxtransstatus->value == 'ERROR')) {
                 $this->_logger->log("Payment failed confirmed for order #$orderNr.");
 
                 if ($fromServer) {
-                    die($response->getOutputForPlatform('payment_ko_already_done'));
+                    die($response->getOutputForGateway('payment_ko_already_done'));
                 } else {
-                    // error message
-                    if (!$firstMsg) {
+                    // Error message.
+                    $message = '';
+
+                    if (! $firstMsg) {
                         $message = '<br />';
                     }
 
@@ -267,9 +256,8 @@ class lyPayzenResponse extends oxUBase
                 );
 
                 if ($fromServer) {
-                    die($response->getOutputForPlatform('payment_ko_on_order_ok'));
+                    die($response->getOutputForGateway('payment_ko_on_order_ok'));
                 } else {
-                    // error message
                     oxRegistry::getUtils()->redirect($this->getConfig()->getShopSecureHomeUrl(), false);
                     exit;
                 }
@@ -279,10 +267,24 @@ class lyPayzenResponse extends oxUBase
 
     private function _savePaymentData($oOrder, $response)
     {
-        // save payment information
+        // Save payment information.
+        $card_brand = $response->get('card_brand');
+        if ($response->get('brand_management')) {
+            $brand_info = json_decode($response->get('brand_management'));
+            $oLang = oxRegistry::getLang();
+
+            if (isset($brand_info->userChoice) && $brand_info->userChoice) {
+                $msg_brand_choice .= $oLang->translateString('PAYZEN_ORDER_BRANDUSERCHOICE');
+            } else {
+                $msg_brand_choice .= $oLang->translateString('PAYZEN_ORDER_BRANDEFAULTCHOICE');
+            }
+
+            $card_brand .= ' (' . $msg_brand_choice . ')';
+        }
+
         $oOrder->oxorder__oxtransid = new oxField($response->get('trans_id'));
         $oOrder->oxorder__payzentransuuid = new oxField($response->get('trans_uuid'));
-        $oOrder->oxorder__payzencardbrand = new oxField($response->get('card_brand'));
+        $oOrder->oxorder__payzencardbrand = new oxField($card_brand);
         $oOrder->oxorder__payzencardnumber = new oxField($response->get('card_number'));
 
         if ($response->get('expiry_month') && $response->get('expiry_year')) {
@@ -292,7 +294,7 @@ class lyPayzenResponse extends oxUBase
     }
 
     /**
-     * Returns oxUtilsView instance
+     * Returns oxUtilsView instance.
      *
      * @return oxUtilsView
      */

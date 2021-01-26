@@ -1,25 +1,11 @@
 <?php
 /**
- * PayZen V2-Payment Module version 2.0.1 for OXID_eShop_CE 4.9-4.10. Support contact : support@payzen.eu.
+ * Copyright © Lyra Network.
+ * This file is part of PayZen plugin for OXID eShop CE. See COPYING.md for license details.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @author    Lyra Network (http://www.lyra-network.com/)
- * @copyright 2014-2018 Lyra Network and contributors
- * @license   http://www.gnu.org/licenses/gpl.html  GNU General Public License (GPL v3)
- * @category  payment
- * @package   payzen
+ * @author    Lyra Network (https://www.lyra.com/)
+ * @copyright Lyra Network
+ * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License (GPL v3)
  */
 
 /**
@@ -28,16 +14,17 @@
 class lyPayzenEvents
 {
     /**
-     * Add PayZen payment method.
+     * Add gateway payment method.
      */
     public static function addPaymentMethod()
     {
         $oPayment = oxNew('oxPayment');
 
-        if (!$oPayment->load('oxidpayzen')) {
+        require_once(dirname(__FILE__) . '/lypayzentools.php');
+        if (! $oPayment->load('oxidpayzen')) {
             $oPayment->setId('oxidpayzen');
             $oPayment->oxpayments__oxactive = new oxField(1);
-            $oPayment->oxpayments__oxdesc = new oxField('PayZen');
+            $oPayment->oxpayments__oxdesc = new oxField(lyPayzenTools::getDefault('GATEWAY_NAME'));
             $oPayment->oxpayments__oxaddsum = new oxField(0);
             $oPayment->oxpayments__oxaddsumtype = new oxField('abs');
             $oPayment->oxpayments__oxfromboni = new oxField(0);
@@ -47,7 +34,8 @@ class lyPayzenEvents
             $aPaymentDescriptions = array(
                 'fr' => '<p>Paiement sécurisé par carte bancaire avec PayZen. Vous allez être redirigé(e) vers la page de paiement après confirmation de la commande.</p>',
                 'en' => '<p>Secured payment by credit card with PayZen. You will be redirected to payment page after order confirmation.</p>',
-                'de' => '<p>Sichere Zahlung mit Kreditkarte mit PayZen. Sie werden zu den Zahlungsseiten nach Zahlungsbestätigung weitergeleitet.</p>'
+                'de' => '<p>Sichere Zahlung mit Kreditkarte mit PayZen. Sie werden zu den Zahlungsseiten nach Zahlungsbestätigung weitergeleitet.</p>',
+                'es' => '<p>Pago seguro con tarjeta de crédito con PayZen. Será redireccionado a la página de pago después de la confirmación del pedido.</p>'
             );
 
             $oLanguage = oxRegistry::get('oxLang');
@@ -64,7 +52,7 @@ class lyPayzenEvents
     }
 
     /**
-     * Disables PayZen payment method.
+     * Disables payment method.
      */
     public static function disablePaymentMethod()
     {
@@ -75,7 +63,7 @@ class lyPayzenEvents
     }
 
     /**
-     * Activates PayZen payment method.
+     * Activates payment method.
      */
     public static function enablePaymentMethod()
     {
@@ -86,7 +74,7 @@ class lyPayzenEvents
     }
 
     /**
-     * Add PayZen fields to DB oxorder table.
+     * Add gateway fields to DB oxorder table.
      */
     public static function addPayzenFields()
     {
@@ -96,16 +84,16 @@ class lyPayzenEvents
         $aTableFields = array(
             'PAYZENSENDMAIL' => array('type' => 'TINYINT(1)', 'default' => 0),
             'PAYZENCARDNUMBER' => array('type' => 'VARCHAR(128)', 'default' => ''),
-            'PAYZENCARDBRAND' => array('type' => 'VARCHAR(16)', 'default' => ''),
+            'PAYZENCARDBRAND' => array('type' => 'VARCHAR(128)', 'default' => ''),
             'PAYZENCARDEXPIRATION' => array('type' => 'varchar(7)', 'default' => ''),
             'PAYZENTRANSUUID' => array('type' => 'varchar(32)', 'default' => '')
         );
 
         foreach ($aTableFields as $sTableFieldName => $sFieldStructure) {
-            if (!$oDbMetaDataHandler->fieldExists($sTableFieldName, $sTableName)) {
+            if (! $oDbMetaDataHandler->fieldExists($sTableFieldName, $sTableName)) {
                 oxDb::getDb()->execute(
                     'ALTER TABLE `' . $sTableName . '`
-                         ADD COLUMN `' . $sTableFieldName .'` '. $sFieldStructure ['type'] . '
+                         ADD COLUMN `' . $sTableFieldName . '` ' . $sFieldStructure ['type'] . '
                              DEFAULT "' . $sFieldStructure ['default'] . '";'
                 );
             }
@@ -117,13 +105,13 @@ class lyPayzenEvents
      */
     public static function onActivate()
     {
-        // adding record to oxPayment table
+        // Adding record to oxPayment table.
         self::addPaymentMethod();
 
-        // enabling PayZen payment method
+        // Enabling payment method.
         self::enablePaymentMethod();
 
-        // adding PayZen fields to DB oxorder table
+        // Adding gateway fields to DB oxorder table.
         self::addPayzenFields();
     }
 
