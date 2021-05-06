@@ -82,7 +82,7 @@ class lyPayzenRedirect extends oxUBase
         $data['order_id'] = $oOrder->oxorder__oxordernr->value;
         $data['order_info'] = 'sess_challenge=' . $this->getSession()->getVariable('sess_challenge');
 
-        $data['contrib'] = 'OXID_eShop_CE_4.9-6.2_2.1.0/' . oxView::getShopFullEdition() . ' ' . oxView::getShopVersion()
+        $data['contrib'] = 'OXID_eShop_CE_4.9-6.x_2.1.1/' . oxView::getShopFullEdition() . ' ' . oxView::getShopVersion()
             . '/' . PHP_VERSION;
 
         // Return to shop URL.
