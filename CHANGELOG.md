@@ -1,3 +1,7 @@
+2.1.1, 2021-05-06:
+- Validate plugin compatibility with OXID eShop CE last version.
+- Put readme and license files to the plugin root folder.
+
 2.1.0, 2021-01-26:
 - Compatibility with new OXID eShop CE versions (6.x).
 - Fix some plugin translations.
