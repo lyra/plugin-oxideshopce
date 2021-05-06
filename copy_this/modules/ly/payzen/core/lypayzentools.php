@@ -23,9 +23,9 @@ class lyPayzenTools
     private static $SIGN_ALGO = 'SHA-256';
     private static $LANGUAGE = 'fr';
 
-    private static $CMS_IDENTIFIER = 'OXID_eShop_CE_4.9-6.2';
+    private static $CMS_IDENTIFIER = 'OXID_eShop_CE_4.9-6.x';
     private static $SUPPORT_EMAIL = 'support@payzen.eu';
-    private static $PLUGIN_VERSION = '2.1.0';
+    private static $PLUGIN_VERSION = '2.1.1';
     private static $GATEWAY_VERSION = 'V2';
 
     public static $pluginFeatures = array(
